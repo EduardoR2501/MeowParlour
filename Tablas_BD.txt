@@ -1,0 +1,62 @@
+CREATE TABLE usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL,
+    apellido VARCHAR(50) NOT NULL,
+    usuario VARCHAR(50) NOT NULL UNIQUE,
+    contraseña VARCHAR(100) NOT NULL,
+    rol ENUM('Administrador', 'Contador', 'Empleado', 'Cliente') NOT NULL,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE productos (
+    CodigoDeBarras VARCHAR(255) PRIMARY KEY,
+    Nombre VARCHAR(255) NOT NULL,
+    Descripcion VARCHAR(255) NOT NULL,
+    Precio DOUBLE NOT NULL,
+    Cantidad INT NOT NULL
+);
+
+CREATE TABLE proveedores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    nit VARCHAR(20) NOT NULL,
+    direccion VARCHAR(255) NOT NULL,
+    producto_distribuye VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE compras (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    proveedor_nit VARCHAR(50),
+    producto_distribuido VARCHAR(100),
+    descripcion VARCHAR(255),
+    monto DOUBLE,
+    fecha_compra DATE
+);
+
+CREATE TABLE facturas_pdf (
+    ID INT AUTO_INCREMENT PRIMARY KEY,
+    FacturaID INT NOT NULL,
+    FacturaPDF LONGBLOB NOT NULL,
+    FOREIGN KEY (FacturaID) REFERENCES facturas(IDFactura)
+);
+
+CREATE TABLE facturas (
+    IdFactura INT AUTO_INCREMENT PRIMARY KEY,
+    Fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    NIT VARCHAR(20) NOT NULL,
+    NombreCliente VARCHAR(100) NOT NULL,
+    DireccionCliente VARCHAR(255) NOT NULL,
+    Subtotal DECIMAL(10, 2) NOT NULL,
+    IVA DECIMAL(10, 2) NOT NULL,
+    Total DECIMAL(10, 2) NOT NULL
+);
+
+CREATE TABLE detalle_factura (
+    IdDetalle INT AUTO_INCREMENT PRIMARY KEY,
+    IdFactura INT NOT NULL,
+    CodigoDeBarras VARCHAR(50) NOT NULL,
+    Cantidad INT NOT NULL,
+    SubtotalProducto DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (IdFactura) REFERENCES facturas(IdFactura),
+    FOREIGN KEY (CodigoDeBarras) REFERENCES productos(CodigoDeBarras)
+);
