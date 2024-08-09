@@ -58,85 +58,6 @@ public class RealizarCompra extends javax.swing.JFrame {
         TablaProductos.setModel(model);
     }
     
-    
-    
-    
-    
-    
-    
-    private void RecibirCodigoDeBarras() {
-        DefaultTableModel model = new DefaultTableModel(
-                new Object[][]{},
-                new String[]{"Codigo de barras", "Nombre", "Descripcion", "Precio sin IVA", "IVA", "Precio con IVA", "Cantidad", "Total con IVA"}
-        );
-        TablaProductos.setModel(model);
-    }
-    
-    
-    
-    
-    
-    
-    
-    private void AgregarProducto() {
-        String codigoBarras = "";
-        if (codigoBarras.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "El campo de código de barras está vacío", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        Conexion conexion = new Conexion();
-        String sql = "SELECT * FROM productos WHERE CodigoDeBarras = ?";
-        try (Connection con = conexion.getConnection();
-             PreparedStatement pst = con.prepareStatement(sql)) {
-
-            pst.setString(1, codigoBarras);
-
-            try (ResultSet rs = pst.executeQuery()) {
-                if (rs.next()) {
-                    String nombre = rs.getString("Nombre");
-                    String descripcion = rs.getString("Descripcion");
-                    double precio = rs.getDouble("Precio");
-                    double PrecioSinIVA = precio - (precio * 0.12);
-                    int CantidadNueva;
-                    DefaultTableModel model = (DefaultTableModel) TablaProductos.getModel();
-                    boolean productoExiste = false;
-                    //FieldCodigoBarras.setText("");
-                    for (int i = 0; i < model.getRowCount(); i++) {
-                        if (model.getValueAt(i, 0).equals(codigoBarras)) {
-                            int cantidad = (int) model.getValueAt(i, 6);
-                            CantidadNueva = cantidad + 1;
-                            model.setValueAt(CantidadNueva, i, 6);
-                            model.setValueAt(precio * CantidadNueva, i, 7); 
-                            productoExiste = true;
-                            break;
-                        }
-                    }
-                    if (!productoExiste) {
-                        double iva = precio * 0.12;
-                        iva = Math.round(iva * 100.0) / 100.0;
-                        model.addRow(new Object[]{codigoBarras, nombre, descripcion, PrecioSinIVA, iva, precio, 1, precio});
-                    }
-                    actualizarTotales();
-                } else {
-                    JOptionPane.showMessageDialog(this, "Producto no encontrado", "Error", JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al conectar con la base de datos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     private void actualizarTotales() {
         DefaultTableModel model = (DefaultTableModel) TablaProductos.getModel();
         double subtotal = 0.0;
@@ -465,13 +386,6 @@ public class RealizarCompra extends javax.swing.JFrame {
         }
     }
     
-    
-   
-    
-    
-    
-    
-   
     private void generarPDF(int facturaID) {
         Document document = new Document();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -563,7 +477,6 @@ public class RealizarCompra extends javax.swing.JFrame {
             // Guardar el PDF en la base de datos
             guardarPDFenBD(facturaID, pdfBytes);
 
-            JOptionPane.showMessageDialog(this, "PDF de la factura guardado exitosamente en la base de datos", "Éxito", JOptionPane.INFORMATION_MESSAGE);
         } catch (DocumentException | IOException e) {
             JOptionPane.showMessageDialog(this, "Error al generar el PDF: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }

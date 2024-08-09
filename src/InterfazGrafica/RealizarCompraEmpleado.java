@@ -21,6 +21,7 @@ import meowparlour.Conexion;
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 
 public class RealizarCompraEmpleado extends javax.swing.JFrame {
@@ -262,7 +263,8 @@ public class RealizarCompraEmpleado extends javax.swing.JFrame {
         Fondo.add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(840, 140, 330, 510));
 
         BotonRealizarPedido.setFont(new java.awt.Font("Times New Roman", 0, 36)); // NOI18N
-        BotonRealizarPedido.setText("Realizar pedido");
+        BotonRealizarPedido.setText("Realizar compra");
+        BotonRealizarPedido.setActionCommand("Realizar compra");
         BotonRealizarPedido.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 BotonRealizarPedidoActionPerformed(evt);
@@ -369,54 +371,7 @@ public class RealizarCompraEmpleado extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_FieldCodigoDeBarrasActionPerformed
     
-    private void AgregarProducto(String codigo){
-        String codigoBarras = codigo;
-        if (codigoBarras.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "El campo de código de barras está vacío", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        Conexion conexion = new Conexion();
-        String sql = "SELECT * FROM productos WHERE CodigoDeBarras = ?";
-        try (Connection con = conexion.getConnection();
-             PreparedStatement pst = con.prepareStatement(sql)) {
-
-            pst.setString(1, codigoBarras);
-
-            try (ResultSet rs = pst.executeQuery()) {
-                if (rs.next()) {
-                    String nombre = rs.getString("Nombre");
-                    String descripcion = rs.getString("Descripcion");
-                    double precio = rs.getDouble("Precio");
-                    double PrecioSinIVA = precio - (precio * 0.12);
-                    int CantidadNueva;
-                    DefaultTableModel model = (DefaultTableModel) TablaProductos.getModel();
-                    boolean productoExiste = false;
-                    //FieldCodigoBarras.setText("");
-                    for (int i = 0; i < model.getRowCount(); i++) {
-                        if (model.getValueAt(i, 0).equals(codigoBarras)) {
-                            int cantidad = (int) model.getValueAt(i, 6);
-                            CantidadNueva = cantidad + 1;
-                            model.setValueAt(CantidadNueva, i, 6);
-                            model.setValueAt(precio * CantidadNueva, i, 7); 
-                            productoExiste = true;
-                            break;
-                        }
-                    }
-                    if (!productoExiste) {
-                        double iva = precio * 0.12;
-                        iva = Math.round(iva * 100.0) / 100.0;
-                        model.addRow(new Object[]{codigoBarras, nombre, descripcion, PrecioSinIVA, iva, precio, 1, precio});
-                    }
-                    actualizarTotales();
-                } else {
-                    JOptionPane.showMessageDialog(this, "Producto no encontrado", "Error", JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al conectar con la base de datos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-    
+   
     private void verificarStockYGuardarFactura() {
         DefaultTableModel model = (DefaultTableModel) TablaProductos.getModel();
         Conexion conexion = new Conexion();
@@ -493,7 +448,6 @@ public class RealizarCompraEmpleado extends javax.swing.JFrame {
                 pstFacturaProductos.setDouble(4, subtotal);
                 pstFacturaProductos.executeUpdate();
 
-                // Actualizar stock en la tabla productos
                 pstUpdateStock.setInt(1, cantidad);
                 pstUpdateStock.setString(2, codigoBarras);
                 pstUpdateStock.executeUpdate();
@@ -501,125 +455,138 @@ public class RealizarCompraEmpleado extends javax.swing.JFrame {
 
             generarPDF(facturaID);
 
-            JOptionPane.showMessageDialog(this, "Pedido realizado correctamente", "Éxito", JOptionPane.INFORMATION_MESSAGE);
             dispose();
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error al guardar la factura: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
    
-    private void generarPDF(int facturaID) {
-        Document document = new Document();
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+private void generarPDF(int facturaID) {
+    Document document = new Document();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-        try {
-            PdfWriter.getInstance(document, baos);
-            document.open();
+    try {
+        PdfWriter.getInstance(document, baos);
+        document.open();
 
-            // Fuente personalizada
-            Font fontTitulo = new Font(Font.FontFamily.HELVETICA, 24, Font.BOLD);
-            Font fontSubtitulo = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD);
-            Font fontTexto = new Font(Font.FontFamily.HELVETICA, 12, Font.NORMAL);
-            Font fontFooter = new Font(Font.FontFamily.HELVETICA, 10, Font.ITALIC);
+        Font fontTitulo = new Font(Font.FontFamily.HELVETICA, 24, Font.BOLD);
+        Font fontSubtitulo = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD);
+        Font fontTexto = new Font(Font.FontFamily.HELVETICA, 12, Font.NORMAL);
+        Font fontFooter = new Font(Font.FontFamily.HELVETICA, 10, Font.ITALIC);
 
-            // Título de la factura
-            Paragraph titulo = new Paragraph("Meow Parlour", fontTitulo);
-            titulo.setAlignment(Element.ALIGN_CENTER);
-            document.add(titulo);
+        Paragraph titulo = new Paragraph("Meow Parlour", fontTitulo);
+        titulo.setAlignment(Element.ALIGN_CENTER);
+        document.add(titulo);
 
-            // Espaciado
-            document.add(new Paragraph(" "));
-            document.add(new Paragraph("Número de Factura: " + facturaID, fontTexto));
-            document.add(new Paragraph("NIT: " + FieldNIT.getText(), fontTexto));
-            document.add(new Paragraph("Nombre: " + FieldNombre.getText(), fontTexto));
-            document.add(new Paragraph("Dirección: " + FieldDireccion.getText(), fontTexto));
-            document.add(new Paragraph(" "));
+        document.add(new Paragraph(" "));
+        document.add(new Paragraph("Número de Factura: " + facturaID, fontTexto));
+        document.add(new Paragraph("NIT: " + FieldNIT.getText(), fontTexto));
+        document.add(new Paragraph("Nombre: " + FieldNombre.getText(), fontTexto));
+        document.add(new Paragraph("Dirección: " + FieldDireccion.getText(), fontTexto));
+        document.add(new Paragraph(" "));
 
-            // Tabla de productos
-            PdfPTable table = new PdfPTable(5);
-            table.setWidthPercentage(100);
-            table.setSpacingBefore(10f);
-            table.setSpacingAfter(10f);
+        PdfPTable table = new PdfPTable(5);
+        table.setWidthPercentage(100);
+        table.setSpacingBefore(10f);
+        table.setSpacingAfter(10f);
 
-            // Encabezados de la tabla
-            PdfPCell cell = new PdfPCell(new Phrase("Código de Barras", fontSubtitulo));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            table.addCell(cell);
+        PdfPCell cell = new PdfPCell(new Phrase("Código de Barras", fontSubtitulo));
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+        table.addCell(cell);
 
-            cell = new PdfPCell(new Phrase("Nombre de Producto", fontSubtitulo));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            table.addCell(cell);
+        cell = new PdfPCell(new Phrase("Nombre de Producto", fontSubtitulo));
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+        table.addCell(cell);
 
-            cell = new PdfPCell(new Phrase("Cantidad", fontSubtitulo));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            table.addCell(cell);
+        cell = new PdfPCell(new Phrase("Cantidad", fontSubtitulo));
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+        table.addCell(cell);
 
-            cell = new PdfPCell(new Phrase("Subtotal", fontSubtitulo));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            table.addCell(cell);
+        cell = new PdfPCell(new Phrase("Subtotal", fontSubtitulo));
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+        table.addCell(cell);
 
-            cell = new PdfPCell(new Phrase("Total", fontSubtitulo));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            table.addCell(cell);
+        cell = new PdfPCell(new Phrase("Total", fontSubtitulo));
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+        table.addCell(cell);
 
-            // Datos de la tabla
-            DefaultTableModel model = (DefaultTableModel) TablaProductos.getModel();
-            for (int i = 0; i < model.getRowCount(); i++) {
-                table.addCell((String) model.getValueAt(i, 0)); // Código de Barras
-                table.addCell((String) model.getValueAt(i, 1)); // Nombre de Producto
-                table.addCell(String.valueOf(model.getValueAt(i, 6))); // Cantidad
-                table.addCell(String.valueOf(model.getValueAt(i, 3))); // Subtotal
-                table.addCell(String.valueOf(model.getValueAt(i, 5))); // Total
-            }
+        DefaultTableModel model = (DefaultTableModel) TablaProductos.getModel();
+        for (int i = 0; i < model.getRowCount(); i++) {
+            table.addCell((String) model.getValueAt(i, 0)); // Código de Barras
+            table.addCell((String) model.getValueAt(i, 1)); // Nombre de Producto
+            table.addCell(String.valueOf(model.getValueAt(i, 6))); // Cantidad
+            table.addCell(String.valueOf(model.getValueAt(i, 3))); // Subtotal
+            table.addCell(String.valueOf(model.getValueAt(i, 5))); // Total
+        }
 
-            document.add(table);
+        document.add(table);
 
-            // Totales
-            document.add(new Paragraph(" "));
-            document.add(new Paragraph("Subtotal (sin IVA): " + FieldSubtotal.getText().substring(19), fontTexto));
-            document.add(new Paragraph("IVA: " + FieldIVA.getText().substring(5), fontTexto));
-            document.add(new Paragraph("Total: " + FieldTotal.getText().substring(7), fontTexto));
+        document.add(new Paragraph(" "));
+        document.add(new Paragraph("Subtotal (sin IVA): " + FieldSubtotal.getText().substring(19), fontTexto));
+        document.add(new Paragraph("IVA: " + FieldIVA.getText().substring(5), fontTexto));
+        document.add(new Paragraph("Total: " + FieldTotal.getText().substring(7), fontTexto));
 
-            // Pie de página
-            Paragraph footer = new Paragraph("Gracias por su compra", fontFooter);
-            footer.setAlignment(Element.ALIGN_CENTER);
-            document.add(footer);
+        Paragraph footer = new Paragraph("Gracias por su compra", fontFooter);
+        footer.setAlignment(Element.ALIGN_CENTER);
+        document.add(footer);
 
-            document.close();
+        document.close();
 
-            // Convertir el ByteArrayOutputStream a byte[]
-            byte[] pdfBytes = baos.toByteArray();
-            baos.close();
+        byte[] pdfBytes = baos.toByteArray();
+        baos.close();
 
-            // Guardar el PDF en la base de datos
-            guardarPDFenBD(facturaID, pdfBytes);
+        guardarPDFenBD(facturaID, pdfBytes);
 
-            JOptionPane.showMessageDialog(this, "PDF de la factura guardado exitosamente en la base de datos", "Éxito", JOptionPane.INFORMATION_MESSAGE);
-        } catch (DocumentException | IOException e) {
-            JOptionPane.showMessageDialog(this, "Error al generar el PDF: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        guardarPDFenLocal(pdfBytes);
+
+    } catch (DocumentException | IOException e) {
+        JOptionPane.showMessageDialog(this, "Error al generar el PDF: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
+
+private void guardarPDFenBD(int facturaID, byte[] pdfBytes) {
+    Conexion conexion = new Conexion();
+    String sql = "INSERT INTO facturas_pdf (FacturaID, FacturaPDF) VALUES (?, ?)";
+
+    try (Connection con = conexion.getConnection();
+         PreparedStatement pst = con.prepareStatement(sql)) {
+
+        pst.setInt(1, facturaID);
+        pst.setBytes(2, pdfBytes); // Cambiar a setBytes para usar byte[]
+        pst.executeUpdate();
+
+    } catch (SQLException e) {
+        JOptionPane.showMessageDialog(this, "Error al guardar el PDF en la base de datos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
+
+private void guardarPDFenLocal(byte[] pdfBytes) {
+    JFileChooser fileChooser = new JFileChooser();
+    fileChooser.setDialogTitle("Guardar PDF de Factura");
+    fileChooser.setFileFilter(new FileNameExtensionFilter("Archivo PDF", "pdf"));
+
+    int userSelection = fileChooser.showSaveDialog(this);
+
+    if (userSelection == JFileChooser.APPROVE_OPTION) {
+        File fileToSave = fileChooser.getSelectedFile();
+        if (!fileToSave.getAbsolutePath().endsWith(".pdf")) {
+            fileToSave = new File(fileToSave + ".pdf");
+        }
+
+        try (FileOutputStream fos = new FileOutputStream(fileToSave)) {
+            fos.write(pdfBytes);
+            JOptionPane.showMessageDialog(this, "Factura guardada exitosamente", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Error al guardar el PDF en almacenamiento local: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+}
 
-    private void guardarPDFenBD(int facturaID, byte[] pdfBytes) {
-        Conexion conexion = new Conexion();
-        String sql = "INSERT INTO facturas_pdf (FacturaID, FacturaPDF) VALUES (?, ?)";
-
-        try (Connection con = conexion.getConnection();
-             PreparedStatement pst = con.prepareStatement(sql)) {
-
-            pst.setInt(1, facturaID);
-            pst.setBytes(2, pdfBytes); // Cambiar a setBytes para usar byte[]
-            pst.executeUpdate();
-
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al guardar el PDF en la base de datos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
     
     public static void main(String args[]) {
         try {

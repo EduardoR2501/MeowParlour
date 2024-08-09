@@ -187,6 +187,7 @@ public class UsuarioAdmin extends javax.swing.JFrame {
     }//GEN-LAST:event_BotonInventarioActionPerformed
 
     private void BotonFacturasActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BotonFacturasActionPerformed
+        VerFacturas = new Facturas();
         VerFacturas.setVisible(true);
     }//GEN-LAST:event_BotonFacturasActionPerformed
 

@@ -240,7 +240,8 @@
             <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
               <Font name="Times New Roman" size="36" style="0"/>
             </Property>
-            <Property name="text" type="java.lang.String" value="Realizar pedido"/>
+            <Property name="text" type="java.lang.String" value="Realizar compra"/>
+            <Property name="actionCommand" type="java.lang.String" value="Realizar compra"/>
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="BotonRealizarPedidoActionPerformed"/>
