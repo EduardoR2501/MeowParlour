@@ -10,19 +10,20 @@ import com.itextpdf.text.Phrase;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-
 import java.sql.*;
 import meowparlour.Conexion;
-import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import com.itextpdf.text.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
-import meowparlour.DatosFactura;
+
+import com.itextpdf.text.Image;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+
 
 public class RealizarCompra extends javax.swing.JFrame {
 
@@ -38,7 +39,7 @@ public class RealizarCompra extends javax.swing.JFrame {
             @Override
             public void valueChanged(ListSelectionEvent e) {
                 if (!e.getValueIsAdjusting()) {
-                    BotonBorrar.setEnabled(TablaProductos.getSelectedRow() != -1); // Habilitar solo si hay una fila seleccionada
+                    BotonBorrar.setEnabled(TablaProductos.getSelectedRow() != -1);
                 }
             }
         });
@@ -265,7 +266,9 @@ public class RealizarCompra extends javax.swing.JFrame {
                     String nombre = rs.getString("Nombre");
                     String descripcion = rs.getString("Descripcion");
                     double precio = rs.getDouble("Precio");
-                    double PrecioSinIVA = precio - (precio * 0.12);
+                    //double PrecioSinIVA = precio - (precio * 0.12);
+                    double PrecioSinIVA = precio/1.12;
+                    PrecioSinIVA = Math.round(PrecioSinIVA * 100.00) / 100.00;
                     int CantidadNueva;
                     DefaultTableModel model = (DefaultTableModel) TablaProductos.getModel();
                     boolean productoExiste = false;
@@ -281,8 +284,8 @@ public class RealizarCompra extends javax.swing.JFrame {
                         }
                     }
                     if (!productoExiste) {
-                        double iva = precio * 0.12;
-                        iva = Math.round(iva * 100.0) / 100.0;
+                        double iva = PrecioSinIVA * 0.12;
+                        iva = Math.round(iva * 100.00) / 100.00;
                         model.addRow(new Object[]{codigoBarras, nombre, descripcion, PrecioSinIVA, iva, precio, 1, precio});
                     }
                     actualizarTotales();
@@ -393,94 +396,136 @@ public class RealizarCompra extends javax.swing.JFrame {
         try {
             PdfWriter.getInstance(document, baos);
             document.open();
+            
+            Font fontTitulo = new Font(Font.FontFamily.HELVETICA, 24, Font.BOLD, BaseColor.BLACK);
+            Font fontSubtitulo = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD, BaseColor.WHITE);
+            Font fontTexto = new Font(Font.FontFamily.HELVETICA, 12, Font.NORMAL, BaseColor.BLACK);
+            Font fontFooter = new Font(Font.FontFamily.HELVETICA, 10, Font.ITALIC, BaseColor.DARK_GRAY);
 
-            // Fuente personalizada
-            Font fontTitulo = new Font(Font.FontFamily.HELVETICA, 24, Font.BOLD);
-            Font fontSubtitulo = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD);
-            Font fontTexto = new Font(Font.FontFamily.HELVETICA, 12, Font.NORMAL);
-            Font fontFooter = new Font(Font.FontFamily.HELVETICA, 10, Font.ITALIC);
-
-            // Título de la factura
             Paragraph titulo = new Paragraph("Meow Parlour", fontTitulo);
             titulo.setAlignment(Element.ALIGN_CENTER);
             document.add(titulo);
 
-            // Espaciado
-            document.add(new Paragraph(" "));
-            document.add(new Paragraph("Número de Factura: " + facturaID, fontTexto));
-            document.add(new Paragraph("NIT: " + FieldNIT.getText(), fontTexto));
-            document.add(new Paragraph("Nombre: " + FieldNombre.getText(), fontTexto));
-            document.add(new Paragraph("Dirección: " + FieldDireccion.getText(), fontTexto));
             document.add(new Paragraph(" "));
 
-            // Tabla de productos
+            PdfPTable contentTable = new PdfPTable(2);
+            contentTable.setWidthPercentage(100);
+
+            PdfPCell datosCell = new PdfPCell();
+            datosCell.setBorder(Rectangle.NO_BORDER);
+            datosCell.addElement(new Paragraph("Número de Factura: " + facturaID, fontTexto));
+            datosCell.addElement(new Paragraph("NIT: " + FieldNIT.getText(), fontTexto));
+            datosCell.addElement(new Paragraph("Nombre: " + FieldNombre.getText(), fontTexto));
+            datosCell.addElement(new Paragraph("Dirección: " + FieldDireccion.getText(), fontTexto));
+            datosCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+
+            contentTable.addCell(datosCell);
+            
+            try {
+                ClassLoader classLoader = getClass().getClassLoader();
+                InputStream inputStream = classLoader.getResourceAsStream("Imagenes/LogoEmpresa.png");
+
+                if (inputStream == null) {
+                    throw new FileNotFoundException("No se encontró el archivo: Imagenes/LogoEmpresa.png");
+                }
+                Image logo = Image.getInstance(javax.imageio.ImageIO.read(inputStream), null);
+                logo.scaleAbsolute(140, 140);
+
+                PdfPCell logoCell = new PdfPCell(logo);
+                logoCell.setBorder(Rectangle.NO_BORDER);
+                logoCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+                contentTable.addCell(logoCell);
+
+            } catch (IOException | BadElementException e) {
+                JOptionPane.showMessageDialog(null, "Error al cargar el logo: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+
+            document.add(contentTable);
+
+            document.add(new Paragraph(" "));
+
             PdfPTable table = new PdfPTable(5);
             table.setWidthPercentage(100);
             table.setSpacingBefore(10f);
             table.setSpacingAfter(10f);
+            
+            String[] headers = {"Código de Barras", "Nombre de Producto", "Cantidad", "Subtotal", "Total"};
+            for (String header : headers) {
+                PdfPCell cell = new PdfPCell(new Phrase(header, fontSubtitulo));
+                cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                cell.setBackgroundColor(BaseColor.DARK_GRAY);
+                cell.setPadding(10f);
+                table.addCell(cell);
+            }
 
-            // Encabezados de la tabla
-            PdfPCell cell = new PdfPCell(new Phrase("Código de Barras", fontSubtitulo));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            table.addCell(cell);
-
-            cell = new PdfPCell(new Phrase("Nombre de Producto", fontSubtitulo));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            table.addCell(cell);
-
-            cell = new PdfPCell(new Phrase("Cantidad", fontSubtitulo));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            table.addCell(cell);
-
-            cell = new PdfPCell(new Phrase("Subtotal", fontSubtitulo));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            table.addCell(cell);
-
-            cell = new PdfPCell(new Phrase("Total", fontSubtitulo));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            table.addCell(cell);
-
-            // Datos de la tabla
             DefaultTableModel model = (DefaultTableModel) TablaProductos.getModel();
+            boolean isWhite = true;
             for (int i = 0; i < model.getRowCount(); i++) {
-                table.addCell((String) model.getValueAt(i, 0)); // Código de Barras
-                table.addCell((String) model.getValueAt(i, 1)); // Nombre de Producto
-                table.addCell(String.valueOf(model.getValueAt(i, 6))); // Cantidad
-                table.addCell(String.valueOf(model.getValueAt(i, 3))); // Subtotal
-                table.addCell(String.valueOf(model.getValueAt(i, 5))); // Total
+                PdfPCell cell;
+                BaseColor rowColor = isWhite ? BaseColor.WHITE : new BaseColor(230, 240, 255);
+                isWhite = !isWhite; 
+
+                cell = new PdfPCell(new Phrase((String) model.getValueAt(i, 0)));
+                cell.setBackgroundColor(rowColor);
+                table.addCell(cell);
+
+                cell = new PdfPCell(new Phrase((String) model.getValueAt(i, 1)));
+                cell.setBackgroundColor(rowColor);
+                table.addCell(cell);
+
+                cell = new PdfPCell(new Phrase(String.valueOf(model.getValueAt(i, 6))));
+                cell.setBackgroundColor(rowColor);
+                table.addCell(cell);
+
+                cell = new PdfPCell(new Phrase(String.valueOf(model.getValueAt(i, 3))));
+                cell.setBackgroundColor(rowColor);
+                table.addCell(cell);
+
+                cell = new PdfPCell(new Phrase(String.valueOf(model.getValueAt(i, 5))));
+                cell.setBackgroundColor(rowColor);
+                table.addCell(cell);
             }
 
             document.add(table);
 
-            // Totales
             document.add(new Paragraph(" "));
             document.add(new Paragraph("Subtotal (sin IVA): " + FieldSubtotal.getText().substring(19), fontTexto));
             document.add(new Paragraph("IVA: " + FieldIVA.getText().substring(5), fontTexto));
             document.add(new Paragraph("Total: " + FieldTotal.getText().substring(7), fontTexto));
 
-            // Pie de página
-            Paragraph footer = new Paragraph("Gracias por su compra", fontFooter);
+            try {
+                InputStream inputStream = getClass().getClassLoader().getResourceAsStream("Imagenes/LogoColegio.png");
+
+                if (inputStream == null) {
+                    throw new FileNotFoundException("No se encontró el archivo: Imagenes/LogoColegio.png");
+                }
+                Image otraImagen = Image.getInstance(javax.imageio.ImageIO.read(inputStream), null);
+                otraImagen.scaleAbsolute(75, 117); // Ajustar el tamaño según sea necesario
+                otraImagen.setAlignment(Image.ALIGN_CENTER);
+
+                document.add(otraImagen);
+
+            } catch (IOException | BadElementException e) {
+                JOptionPane.showMessageDialog(null, "Error al cargar la otra imagen: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+
+            Paragraph footer = new Paragraph("Gracias por visitarnos", fontFooter);
             footer.setAlignment(Element.ALIGN_CENTER);
             document.add(footer);
 
             document.close();
 
-            // Convertir el ByteArrayOutputStream a byte[]
             byte[] pdfBytes = baos.toByteArray();
             baos.close();
 
-            // Guardar el PDF en la base de datos
             guardarPDFenBD(facturaID, pdfBytes);
 
         } catch (DocumentException | IOException e) {
             JOptionPane.showMessageDialog(this, "Error al generar el PDF: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+
 
     private void guardarPDFenBD(int facturaID, byte[] pdfBytes) {
         Conexion conexion = new Conexion();
